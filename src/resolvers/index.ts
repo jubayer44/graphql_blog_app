@@ -1,6 +1,8 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
+import { jwtHelpers } from "../utils/jwtHelpers";
+import config from "../config";
+import { Secret } from "jsonwebtoken";
 
 const prisma = new PrismaClient();
 
@@ -8,6 +10,7 @@ interface ICreateUser {
   name: string;
   email: string;
   password: string;
+  bio?: string;
 }
 
 export const resolvers = {
@@ -43,15 +46,26 @@ export const resolvers = {
         },
       });
 
-      const token = jwt.sign({ userId: user.id }, "mysecretkey", {
-        expiresIn: "1d",
-      });
+      if (args?.bio) {
+        await prisma.profile.create({
+          data: {
+            bio: args.bio,
+            userId: user.id,
+          },
+        });
+      }
+
+      const token = jwtHelpers.createToken(
+        { userId: user?.id },
+        config.jwt.secret as Secret
+      );
 
       return {
         userError: null,
         token,
       };
     },
+
     signIn: async (
       parent: any,
       args: { email: string; password: string },
@@ -80,9 +94,10 @@ export const resolvers = {
         };
       }
 
-      const token = jwt.sign({ userId: user.id }, "mysecretkey", {
-        expiresIn: "1d",
-      });
+      const token = jwtHelpers.createToken(
+        { userId: user?.id },
+        config.jwt.secret as Secret
+      );
 
       return {
         userError: null,
